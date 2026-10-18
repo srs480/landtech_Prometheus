@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>সাব-রেজিস্ট্রি অফিস — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main"><div class="container">
+  <h1>সাব-রেজিস্ট্রি অফিস</h1>
+
+  <!-- ===== SECTION: Profile ===== -->
+  <section class="card" aria-labelledby="profile-h">
+    <h2 id="profile-h">প্রোফাইল</h2>
+    <dl class="kv" id="profile"></dl>
+    <a class="btn outline" href="/seba/rapid-check.html">দ্রুত যাচাই (নথি আপলোড)</a>
+  </section>
+
+  <div class="tabs" role="tablist" id="tabs" aria-label="সেবা মেনু"></div>
+
+  <!-- ===== SECTION: Panel — Property transfer wizard ===== -->
+  <section id="panel-transfer" role="tabpanel"><div id="wizard"></div></section>
+
+  <!-- ===== SECTION: Panel — Mutation list (view only) ===== -->
+  <section id="panel-mutation" role="tabpanel" class="hidden">
+    <h2>নামজারি তালিকা</h2>
+    <p class="muted">দলিলের মালিকানা পরিবর্তনের সাথে নামজারি স্বয়ংক্রিয়ভাবে তৈরি হয়। এখানে শুধু দেখা যায়।</p>
+    <div id="mutation-box"></div>
+  </section>
+
+  <!-- ===== SECTION: Panel — Land track record ===== -->
+  <section id="panel-track" role="tabpanel" class="hidden">
+    <h2>জমির ইতিহাস (ট্র্যাক রেকর্ড)</h2>
+    <div class="card"><div id="track-picker"></div></div>
+    <div id="track-box" style="margin-top:1rem"></div>
+  </section>
+
+  <!-- ===== SECTION: Panel — OCR placeholder (static mock) ===== -->
+  <section id="panel-ocr" role="tabpanel" class="hidden">
+    <h2>দলিল/খতিয়ান স্ক্যান (OCR)</h2>
+    <div class="alert info" style="margin-bottom:1rem">বাংলা ওসিআর শীঘ্রই যুক্ত হবে। নিচের অংশটি শুধু নমুনা বিন্যাস।</div>
+    <div class="field"><label for="ocr-file">স্ক্যান করা ছবি আপলোড করুন</label><input id="ocr-file" type="file" accept="image/*"></div>
+    <div class="scan">
+      <div class="scan-img" id="ocr-preview"><span class="muted">স্ক্যান করা ছবি এখানে দেখা যাবে</span></div>
+      <div>
+        <h3>নিষ্কাশিত তথ্য (যাচাই ও সম্পাদনযোগ্য)</h3>
+        <div class="field"><label for="f1">খতিয়ান নম্বর</label><input id="f1" placeholder="ওসিআর-এর পর স্বয়ংক্রিয়ভাবে ভরবে"></div>
+        <div class="field"><label for="f2">দাগ নম্বর</label><input id="f2" placeholder="ওসিআর-এর পর স্বয়ংক্রিয়ভাবে ভরবে"></div>
+        <div class="field"><label for="f3">মালিকের নাম</label><input id="f3" placeholder="ওসিআর-এর পর স্বয়ংক্রিয়ভাবে ভরবে"></div>
+        <button class="btn" type="button" disabled title="শীঘ্রই আসছে">বাংলা OCR চালান (শীঘ্রই)</button>
+      </div>
+    </div>
+  </section>
+</div></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/js/land-picker.js"></script>
+<script src="/js/track-record.js"></script>
+<script>
+(async () => {
+  const user = await LT.initPortal('registry', [['সাব-রেজিস্ট্রি অফিস']]);
+  const h = LT.h, $ = (id) => document.getElementById(id);
+  const en = (v) => String(v ?? '').trim().replace(/[০-৯]/g, (d) => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+
+  // ===== SECTION: Profile =====
+  const rows = [['নাম', user.full_name], ['পদবি', user.designation], ['অফিস', user.office_name], ['অফিস আইডি', user.office_code], ['জেলা', user.district], ['উপজেলা', user.upazila]];
+  $('profile').replaceChildren(...rows.filter(([, v]) => v).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, k === 'অফিস আইডি' ? LT.toBn(v) : v)]));
+
+  // ===== SECTION: Tabs =====
+  const TABS = [['transfer', 'দলিল সম্পাদন'], ['mutation', 'নামজারি'], ['track', 'জমির ইতিহাস'], ['ocr', 'স্ক্যান (OCR)']];
+  function showTab(id) {
+    TABS.forEach(([k]) => { $('tab-' + k).setAttribute('aria-selected', String(k === id)); $('panel-' + k).classList.toggle('hidden', k !== id); });
+    if (id === 'mutation') loadMutations();
+  }
+  $('tabs').replaceChildren(...TABS.map(([k, t]) => h('button', { class: 'tab', role: 'tab', id: 'tab-' + k, onclick: () => showTab(k) }, t)));
+
+  // ===== SECTION: Deed types (ids must match api/_lib/queries.js DEED_TYPES) =====
+  const DEEDS = [
+    ['sale', 'সাফ কবলা', 'টাকার বিনিময়ে মালিকানা চিরতরে হস্তান্তর'], ['bayna', 'বায়নানামা', 'চূড়ান্ত রেজিস্ট্রির আগের চুক্তি'],
+    ['poa', 'আমমোক্তারনামা', 'অন্যকে জমির কাজের ক্ষমতা প্রদান'], ['hiba', 'হেবা', 'আত্মীয়কে বিনিময় ছাড়া দান'],
+    ['bonton', 'বণ্টননামা', 'শরিকদের মধ্যে যৌথ জমি ভাগ'], ['rehen', 'রেহেন/বন্ধকি', 'ঋণের জামানতে জমি বন্ধক'],
+    ['khas', 'খাস জমি বন্দোবস্ত', 'সরকারি খাস জমি বরাদ্দ'],
+  ];
+  const deedName = (id) => DEEDS.find((d) => d[0] === id)[1];
+
+  // ===== SECTION: Wizard state (picker + detail nodes persist across re-renders) =====
+  const fresh = () => ({ step: 1, deed: null, query: null, detail: null, buyer: null, attorney: null, price: '', advance: '', deadline: '', shares: {}, bankId: '', banks: null });
+  let S = fresh();
+  const pickerEl = h('div'), detailEl = h('div', { 'aria-live': 'polite' });
+  LandPicker.mount(pickerEl, { allowDag: false, onSelect: (q) => { S.query = q; S.buyer = S.attorney = null; S.shares = {}; loadDetail(); } });
+
+  async function loadDetail() {
+    if (!S.query) return;
+    detailEl.replaceChildren(h('p', { class: 'muted' }, 'তথ্য আনা হচ্ছে…'));
+    try { S.detail = await LT.api(`/api/khatian/${S.query.khatian}?deed=${S.deed}`); drawDetail(); }
+    catch (e) { S.detail = null; detailEl.replaceChildren(h('div', { class: 'alert', role: 'alert' }, e.message)); }
+  }
+
+  // ===== SECTION: Step 2 — land details + safety checks =====
+  function drawDetail() {
+    const { land: d, owners, khatians, checks } = S.detail;
+    const line = (t, bad) => h('li', {}, bad ? h('span', { class: 'badge danger' }, '✖ ' + t + ': আছে') : h('span', { class: 'badge ok' }, '✔ ' + t + ': নেই'));
+    detailEl.replaceChildren(h('div', { class: 'card', style: 'margin-top:1rem' },
+      h('h3', {}, 'জমির তথ্য'),
+      h('dl', { class: 'kv' },
+        h('dt', {}, 'অবস্থান'), h('dd', {}, `${d.mouza}, ${d.upazila}, ${d.district}, ${d.division}`),
+        h('dt', {}, 'দাগ নম্বর'), h('dd', {}, LT.toBn(d.dag_no)), h('dt', {}, 'জমির পরিমাণ'), h('dd', {}, LT.toBn(d.area_decimal) + ' শতাংশ'),
+        h('dt', {}, 'জমির ধরন'), h('dd', {}, d.land_type),
+        h('dt', {}, 'খতিয়ান'), h('dd', {}, khatians.map((k) => `${k.khatian_type}-${LT.toBn(k.khatian_no)}`).join(', ')),
+        h('dt', {}, 'বর্তমান মালিক'), h('dd', {}, owners.length ? owners.map((o) => `${o.name_bn} (${LT.toBn(o.share_pct)}%)`).join(', ') : 'কেউ নেই (সরকারি)')),
+      h('ul', { style: 'list-style:none;padding:0;margin:0' }, line('ব্যাংক বন্ধক', d.mortgaged), line('আদালতের নিষেধাজ্ঞা', d.injunction), line('চলমান মামলা', d.litigated),
+        line('খাস/অধিগ্রহণকৃত জমি', d.is_khas || d.is_acquired), line('নামজারি অপেক্ষমান', d.mutation_pending))),
+      checks.blocks.length ? h('div', { class: 'alert', role: 'alert', style: 'margin-top:1rem' }, h('b', {}, '⛔ এই দলিল সম্পাদন করা যাবে না'), h('ul', {}, checks.blocks.map((b) => h('li', {}, b)))) : '',
+      checks.warnings.length ? h('div', { class: 'alert warn', style: 'margin-top:1rem' }, h('b', {}, '⚠ সতর্কতা'), h('ul', {}, checks.warnings.map((b) => h('li', {}, b)))) : '');
+  }
+
+  // ===== SECTION: Step 3 — field helpers =====
+  function textField(label, key, attrs = {}) {
+    const i = h('input', { id: 'f-' + key, ...attrs, value: S[key] }); i.addEventListener('input', () => { S[key] = i.value; });
+    return h('div', { class: 'field' }, h('label', { for: 'f-' + key }, label), i);
+  }
+  function personField(label, key) {
+    const input = h('input', { id: 'p-' + key, placeholder: 'নাম বা এনআইডি লিখুন' }), list = h('div', { class: 'pick-list' });
+    const chosen = h('p', { style: 'font-weight:600' }, S[key] ? '✔ নির্বাচিত: ' + S[key].name : '');
+    async function search() {
+      if (input.value.trim().length < 2) { list.replaceChildren(h('div', { class: 'alert warn' }, 'অন্তত ২টি অক্ষর লিখুন')); return; }
+      try {
+        const { items } = await LT.api('/api/people?q=' + encodeURIComponent(input.value.trim()));
+        list.replaceChildren(...(items.length ? items.map((p) => h('button', { class: 'btn outline', type: 'button',
+          onclick: () => { S[key] = { id: p.id, name: p.name_bn }; chosen.textContent = '✔ নির্বাচিত: ' + p.name_bn; list.replaceChildren(); } },
+          `${p.name_bn} — পিতা: ${p.father_name_bn || '—'} — এনআইডি: ${LT.toBn(p.nid_masked)}`)) : [h('p', { class: 'muted' }, 'কাউকে পাওয়া যায়নি')]));
+      } catch (e) { list.replaceChildren(h('div', { class: 'alert', role: 'alert' }, e.message)); }
+    }
+    return h('div', { class: 'field' }, h('label', { for: 'p-' + key }, label), input,
+      h('button', { class: 'btn outline', type: 'button', style: 'margin-top:.5rem', onclick: search }, 'খুঁজুন'), chosen, list);
+  }
+  function bankField() {
+    const sel = h('select', { id: 'f-bank' }, h('option', { value: '' }, 'নির্বাচন করুন'));
+    sel.addEventListener('change', () => { S.bankId = sel.value; });
+    (async () => { try { S.banks ??= (await LT.api('/api/banks')).items;
+      sel.replaceChildren(h('option', { value: '' }, 'নির্বাচন করুন'), ...S.banks.map((b) => h('option', { value: b.id, selected: String(b.id) === String(S.bankId) }, b.office_name))); } catch (e) { LT.toast(e.message, 'error'); } })();
+    return h('div', { class: 'field' }, h('label', { for: 'f-bank' }, 'ব্যাংক / আর্থিক প্রতিষ্ঠান'), sel);
+  }
+  function sharesFields() {
+    const owners = S.detail.owners;
+    if (!Object.keys(S.shares).length) owners.forEach((o) => { S.shares[o.id] = String(Math.round(10000 / owners.length) / 100); });
+    return h('div', {}, h('p', { class: 'muted' }, 'শরিকদের অংশ (%) লিখুন — মোট ১০০ হতে হবে।'), owners.map((o) => {
+      const i = h('input', { id: 'sh-' + o.id, inputmode: 'decimal', value: S.shares[o.id] }); i.addEventListener('input', () => { S.shares[o.id] = i.value; });
+      return h('div', { class: 'field' }, h('label', { for: 'sh-' + o.id }, o.name_bn), i); }));
+  }
+  function extraFields() {
+    const t = S.deed;
+    return [
+      ['sale', 'bayna', 'hiba', 'khas'].includes(t) ? personField(t === 'khas' ? 'বরাদ্দ গ্রহীতা' : 'ক্রেতা / গ্রহীতা', 'buyer') : '',
+      t === 'poa' ? personField('আমমোক্তার (যাকে ক্ষমতা দেওয়া হচ্ছে)', 'attorney') : '',
+      ['sale', 'bayna'].includes(t) ? textField('মূল্য (টাকা)', 'price', { inputmode: 'numeric', placeholder: 'যেমন: ১০০০০০০' }) : '',
+      t === 'rehen' ? [bankField(), textField('ঋণের পরিমাণ (টাকা)', 'price', { inputmode: 'numeric' })] : '',
+      t === 'bayna' ? [textField('অগ্রিম টাকা', 'advance', { inputmode: 'numeric' }), textField('বাকি টাকা পরিশোধের শেষ তারিখ', 'deadline', { type: 'date' })] : '',
+      t === 'bonton' ? sharesFields() : '',
+      t === 'hiba' ? h('div', { class: 'alert info' }, 'হেবা দলিলে টাকার লেনদেন নেই।') : '',
+    ];
+  }
+
+  // ===== SECTION: Validation (server validates again) =====
+  const num = (v) => Number(en(v));
+  function stepError() {
+    if (S.step === 1 && !S.deed) return 'অনুগ্রহ করে দলিলের ধরন নির্বাচন করুন';
+    if (S.step === 2) {
+      if (!S.detail) return 'অনুগ্রহ করে জমি নির্বাচন করে "জমির তথ্য দেখুন" চাপুন';
+      if (S.detail.checks.blocks.length) return 'এই জমির দলিল সম্পাদন করা যাবে না: ' + S.detail.checks.blocks.join('; ');
+      if (S.deed === 'bonton' && S.detail.owners.length < 2) return 'বণ্টননামার জন্য কমপক্ষে দুইজন শরিক থাকতে হবে';
+    }
+    if (S.step === 3) {
+      const t = S.deed;
+      if (['sale', 'bayna', 'hiba', 'khas'].includes(t) && !S.buyer) return 'ক্রেতা/গ্রহীতা নির্বাচন করুন';
+      if (t === 'poa' && !S.attorney) return 'আমমোক্তার নির্বাচন করুন';
+      if (['sale', 'bayna', 'rehen'].includes(t) && !(num(S.price) > 0)) return 'সঠিক মূল্য/ঋণের পরিমাণ লিখুন';
+      if (t === 'bayna' && (!(num(S.advance) > 0) || !S.deadline)) return 'অগ্রিম টাকা ও শেষ তারিখ দিন';
+      if (t === 'bayna' && num(S.advance) >= num(S.price)) return 'অগ্রিম টাকা মোট মূল্যের চেয়ে কম হতে হবে';
+      if (t === 'rehen' && !S.bankId) return 'ব্যাংক নির্বাচন করুন';
+      if (t === 'bonton' && Math.abs(Object.values(S.shares).reduce((a, v) => a + num(v), 0) - 100) > 0.01) return 'অংশের মোট ১০০% হতে হবে';
+    }
+    return null;
+  }
+  const showErr = (m) => { const e = $('step-error'); e.textContent = m; e.classList.remove('hidden'); e.scrollIntoView({ block: 'center' }); };
+
+  // ===== SECTION: Wizard render =====
+  const STEPS = ['দলিলের ধরন', 'জমি নির্বাচন ও যাচাই', 'পক্ষ ও শর্ত', 'পর্যালোচনা ও নিশ্চিতকরণ'];
+  function render() {
+    const body = S.step === 1 ? h('div', { class: 'grid' }, DEEDS.map(([id, name, hint]) => h('button', { class: 'card', type: 'button', 'aria-pressed': String(S.deed === id),
+        onclick: () => { if (S.deed !== id) { S.deed = id; S.buyer = S.attorney = null; S.shares = {}; S.detail = null; S.query = null; } render(); } }, h('h3', {}, name), h('span', { class: 'muted' }, hint))))
+      : S.step === 2 ? [h('p', { class: 'muted' }, 'দলিল: ' + deedName(S.deed)), pickerEl, detailEl]
+      : S.step === 3 ? h('div', { class: 'card' }, h('h3', {}, deedName(S.deed) + ' — প্রয়োজনীয় তথ্য'), extraFields())
+      : review();
+    const nav = h('div', { class: 'nav-row' },
+      S.step > 1 ? h('button', { class: 'btn outline', type: 'button', onclick: () => { S.step--; render(); } }, '← পেছনে') : h('span'),
+      S.step < 4 ? h('button', { class: 'btn', type: 'button', onclick: () => { const e = stepError(); if (e) return showErr(e); S.step++; if (S.step === 2) loadDetail(); render(); } }, 'পরবর্তী →')
+        : h('button', { class: 'btn', id: 'confirm-btn', type: 'button', onclick: confirmDeed }, 'নিশ্চিত করুন'));
+    $('wizard').replaceChildren(
+      h('ol', { class: 'progress', 'aria-label': 'ধাপ' }, STEPS.map((t, i) => h('li', { 'aria-current': i + 1 === S.step ? 'step' : false }, `${LT.toBn(i + 1)}. ${t}`))),
+      h('div', { id: 'step-error', class: 'alert hidden', role: 'alert', style: 'margin-bottom:1rem' }), ...[body].flat(), nav);
+    if (S.step === 2 && S.detail) drawDetail();
+  }
+
+  // ===== SECTION: Step 4 — review =====
+  function review() {
+    const { land: d, owners } = S.detail, T = S.deed;
+    const pairs = [['দলিলের ধরন', deedName(T)], ['অবস্থান', `${d.mouza}, ${d.upazila}, ${d.district}`], ['দাগ নম্বর', LT.toBn(d.dag_no)],
+      ['জমির পরিমাণ', LT.toBn(d.area_decimal) + ' শতাংশ'], ['বর্তমান মালিক', owners.map((o) => o.name_bn).join(', ') || 'সরকার']];
+    if (S.buyer) pairs.push([T === 'khas' ? 'বরাদ্দ গ্রহীতা' : 'ক্রেতা / গ্রহীতা', S.buyer.name]);
+    if (S.attorney) pairs.push(['আমমোক্তার', S.attorney.name]);
+    if (num(S.price) > 0) pairs.push([T === 'rehen' ? 'ঋণের পরিমাণ' : 'মূল্য', LT.fmtMoney(num(S.price))]);
+    if (T === 'bayna') pairs.push(['অগ্রিম', LT.fmtMoney(num(S.advance))], ['শেষ তারিখ', LT.fmtDate(S.deadline)]);
+    if (T === 'rehen') pairs.push(['ব্যাংক', S.banks.find((b) => String(b.id) === String(S.bankId))?.office_name]);
+    if (T === 'bonton') pairs.push(['অংশ', owners.map((o) => `${o.name_bn}: ${LT.toBn(num(S.shares[o.id]))}%`).join(', ')]);
+    return h('div', { class: 'card' }, h('h3', {}, 'পর্যালোচনা — সব তথ্য ঠিক আছে কি?'), h('dl', { class: 'kv' }, pairs.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+      h('div', { class: 'alert info' }, 'নিশ্চিত করলে দলিল নিবন্ধিত হবে এবং (মালিকানা বদলালে) নামজারি স্বয়ংক্রিয়ভাবে সম্পন্ন হবে। এটি ফেরানো যাবে না।'));
+  }
+
+  // ===== SECTION: Confirm (single transaction on the server) =====
+  async function confirmDeed() {
+    const btn = $('confirm-btn'); btn.disabled = true; btn.textContent = 'অপেক্ষা করুন…';
+    const body = { deedType: S.deed, khatianId: S.query.khatian, buyerId: S.buyer?.id, attorneyId: S.attorney?.id, bankId: S.bankId || undefined,
+      price: en(S.price) || undefined, advance: en(S.advance) || undefined, deadline: S.deadline || undefined,
+      shares: S.deed === 'bonton' ? S.detail.owners.map((o) => ({ personId: o.id, pct: num(S.shares[o.id]) })) : undefined };
+    try { success(await LT.api('/api/registry/transfer', { method: 'POST', body })); }
+    catch (e) { btn.disabled = false; btn.textContent = 'নিশ্চিত করুন'; showErr(e.message); LT.toast(e.message, 'error'); }
+  }
+
+  // ===== SECTION: Success screen (deed no, mutation no, status, QR) =====
+  function success(r) {
+    const url = location.origin + r.verifyPath, qr = h('div', { 'aria-label': 'যাচাইয়ের কিউআর কোড', style: 'background:#fff;padding:8px;display:inline-block' });
+    $('wizard').replaceChildren(h('div', { class: 'card' },
+      h('h2', {}, '✔ দলিল সফলভাবে নিবন্ধিত হয়েছে'),
+      h('dl', { class: 'kv' }, h('dt', {}, 'দলিল নম্বর'), h('dd', {}, LT.toBn(r.deedNo)), h('dt', {}, 'দলিলের ধরন'), h('dd', {}, r.deedType),
+        h('dt', {}, 'নামজারি নম্বর'), h('dd', {}, r.mutationNo ? LT.toBn(r.mutationNo) + ' (সম্পন্ন)' : 'প্রযোজ্য নয় (মালিকানা অপরিবর্তিত)'),
+        h('dt', {}, 'খতিয়ানের বর্তমান অবস্থা'), h('dd', {}, [r.status.owners.length ? 'মালিক: ' + r.status.owners.map((o) => `${o.name} (${LT.toBn(o.share_pct)}%)`).join(', ') : 'কোনো ব্যক্তিমালিক নেই',
+          r.status.mortgaged ? h('span', { class: 'badge danger' }, 'ব্যাংক বন্ধক আছে') : h('span', { class: 'badge ok' }, 'বন্ধক নেই')])),
+      h('p', {}, 'দলিল যাচাইয়ের জন্য কিউআর কোডটি স্ক্যান করুন:'), qr, h('p', { class: 'muted', style: 'word-break:break-all' }, url),
+      h('div', { class: 'nav-row' }, h('button', { class: 'btn', type: 'button', onclick: () => { S = fresh(); LandPicker.mount(pickerEl, { allowDag: false, onSelect: (q) => { S.query = q; loadDetail(); } }); detailEl.replaceChildren(); render(); } }, 'নতুন দলিল সম্পাদন'),
+        h('button', { class: 'btn outline', type: 'button', onclick: () => showTab('mutation') }, 'নামজারি তালিকা দেখুন'))));
+    if (window.QRCode) new QRCode(qr, { text: url, width: 160, height: 160 });
+  }
+
+  // ===== SECTION: Mutation list =====
+  async function loadMutations() {
+    const box = $('mutation-box'); box.replaceChildren(h('p', { class: 'muted' }, 'তথ্য আনা হচ্ছে…'));
+    try {
+      const { items } = await LT.api('/api/registry/mutations');
+      box.replaceChildren(items.length ? h('div', { class: 'table-wrap card' }, h('table', {},
+        h('thead', {}, h('tr', {}, ['নামজারি নং', 'দলিল নং', 'দলিলের ধরন', 'মৌজা / দাগ', 'থেকে', 'প্রতি', 'অবস্থা', 'তারিখ'].map((t) => h('th', {}, t)))),
+        h('tbody', {}, items.map((m) => h('tr', {}, h('td', {}, LT.toBn(m.mutation_no)), h('td', {}, LT.toBn(m.deed_no || '—')), h('td', {}, m.deed_type || '—'),
+          h('td', {}, `${m.mouza} / ${LT.toBn(m.dag_no)}`), h('td', {}, m.from_name || '—'), h('td', {}, m.to_name || '—'),
+          h('td', {}, h('span', { class: 'badge ' + (m.status === 'completed' ? 'ok' : 'warn') }, m.status === 'completed' ? 'সম্পন্ন' : 'অপেক্ষমান')),
+          h('td', {}, LT.fmtDate(m.completed_on || m.created_on))))))) : h('p', { class: 'muted' }, 'কোনো নামজারি পাওয়া যায়নি।'));
+    } catch (e) { box.replaceChildren(h('div', { class: 'alert', role: 'alert' }, e.message)); }
+  }
+
+  // ===== SECTION: Track record tab =====
+  LandPicker.mount($('track-picker'), { allowDag: true, onSelect: (q) => TrackRecord.render($('track-box'), q) });
+
+  // ===== SECTION: OCR tab (static mock; TODO: plug Python OCR service via /api/ocr-check) =====
+  $('ocr-file').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    if (!f.type.startsWith('image/') || f.size > 8 * 1024 * 1024) { LT.toast('৮ এমবির কম আকারের একটি ছবি দিন', 'error'); e.target.value = ''; return; }
+    $('ocr-preview').replaceChildren(h('img', { src: URL.createObjectURL(f), alt: 'আপলোড করা স্ক্যান' }));
+  });
+
+  showTab('transfer'); render();
+})();
+</script>
+</body>
+</html>

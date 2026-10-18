@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>দলিলের ধরন — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main" style="padding-top:0">
+  <section class="page-hero"><div class="container"><h1>দলিলের ধরন</h1><p>৭ ধরনের দলিল সহজ ভাষায়। যে কার্ডে চাপবেন, তার ব্যাখ্যা ও উদাহরণ নিচে দেখাবে।</p></div></section>
+  <div class="container" style="margin-top:1.5rem">
+    <div class="grid" id="deed-grid"></div>
+    <section class="card detail" id="deed-detail" style="margin-top:1.5rem" aria-live="polite" tabindex="-1"><p class="muted">একটি দলিল নির্বাচন করুন।</p></section>
+  </div>
+</main>
+<script src="/js/content-deeds.js"></script>
+<script>
+// ===== SECTION: Deed cards + detail =====
+LT.mountLayout({ crumbs: [['নাগরিক সেবা', '/nagorik-seba.html'], ['দলিলের ধরন']], help: true });
+const h = LT.h, $ = (id) => document.getElementById(id);
+function open(id, focus = true) {
+  const d = DEEDS_CONTENT.find((x) => x.id === id); if (!d) return;
+  document.querySelectorAll('#deed-grid button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  history.replaceState(null, '', '#' + id);
+  $('deed-detail').replaceChildren(
+    h('h2', {}, `${d.icon} ${d.titleBn}`), h('p', { class: 'muted' }, d.titleEn),
+    h('h3', {}, 'বর্ণনা'), h('p', {}, d.description),
+    h('h3', {}, 'উদাহরণ'),
+    h('div', { class: 'chat' },
+      h('div', { class: 'row' }, h('span', { class: 'avatar', 'aria-label': 'কুদ্দুস' }, 'কু'), h('div', { class: 'bubble' }, d.example)),
+      h('div', { class: 'row' }, h('span', { class: 'avatar b', 'aria-label': 'আবির' }, 'আ'), h('small', { class: 'muted' }, 'কুদ্দুস ও আবির এই গল্পের কাল্পনিক চরিত্র।'))),
+    h('a', { class: 'btn outline', href: '/seba/scams.html' }, 'এই দলিলে কী ধরনের প্রতারণা হয়?'));
+  if (focus) $('deed-detail').focus({ preventScroll: false });
+}
+$('deed-grid').replaceChildren(...DEEDS_CONTENT.map((d) => h('button', { class: 'card icon-card', type: 'button', 'data-id': d.id, 'aria-pressed': 'false', onclick: () => open(d.id) },
+  h('span', { class: 'emoji', 'aria-hidden': 'true' }, d.icon), h('h3', {}, d.titleBn), h('span', { class: 'muted' }, d.titleEn))));
+if (location.hash) open(location.hash.slice(1), false);
+</script>
+</body>
+</html>

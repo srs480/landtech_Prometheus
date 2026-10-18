@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>লগইন — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main"><div class="container">
+  <h1>লগইন</h1>
+  <p class="muted">আপনার পোর্টাল নির্বাচন করুন।</p>
+
+  <!-- ===== SECTION: Portal picker ===== -->
+  <div class="grid" id="portals" role="group" aria-label="পোর্টাল নির্বাচন"></div>
+
+  <!-- ===== SECTION: Login form (hidden until a portal is picked) ===== -->
+  <section class="card hidden" id="login-box" style="margin-top:1.5rem;max-width:520px" aria-live="polite">
+    <h2 id="login-title"></h2>
+    <div class="alert hidden" id="login-error" role="alert"></div>
+    <div class="alert info" style="margin-bottom:1rem">ডেমো তথ্য আগে থেকে বসানো আছে (সবার পাসওয়ার্ড: <b>Demo@1234</b>)। শুধু <b>লগইন</b> বাটনে চাপুন।</div>
+    <div class="field"><label for="username">ইউজারনেম</label><input id="username" autocomplete="username"></div>
+    <div class="field"><label for="password">পাসওয়ার্ড</label><input id="password" type="password" autocomplete="current-password"></div>
+    <button class="btn block" id="login-btn" type="button">লগইন</button>
+  </section>
+</div></main>
+
+<script>
+// ===== SECTION: Portal definitions (demo credentials come from db/seed.sql) =====
+const PORTALS = [
+  { role: 'registry', icon: '🏛️', name: 'সাব-রেজিস্ট্রি অফিস',        user: 'registrar_demo' },
+  { role: 'bank',     icon: '🏦', name: 'ব্যাংক ও আর্থিক প্রতিষ্ঠান',  user: 'bank_demo' },
+  { role: 'dc',       icon: '📋', name: 'ভূমি অধিগ্রহণ (ডিসি অফিস)',   user: 'dc_demo' },
+  { role: 'court',    icon: '⚖️', name: 'আদালত ও আইনজীবী',            user: 'lawyer_demo' },
+  { role: 'citizen',  icon: '🏡', name: 'নাগরিক ও ক্রেতা',            user: 'citizen_demo' },
+];
+const DEMO_PASSWORD = 'Demo@1234';
+let selected = null;
+const $ = (id) => document.getElementById(id);
+
+// ===== SECTION: Render picker =====
+function renderPicker() {
+  $('portals').replaceChildren(...PORTALS.map((p) => LT.h('button',
+    { class: 'card', type: 'button', 'aria-pressed': String(selected === p.role), onclick: () => select(p.role) },
+    LT.h('div', { class: 'ico', 'aria-hidden': 'true' }, p.icon), LT.h('h3', {}, p.name))));
+}
+
+// ===== SECTION: Select portal -> prefill form =====
+function select(role) {
+  selected = role; const p = PORTALS.find((x) => x.role === role);
+  $('login-title').textContent = p.name; $('username').value = p.user; $('password').value = DEMO_PASSWORD;
+  $('login-error').classList.add('hidden'); $('login-box').classList.remove('hidden');
+  renderPicker(); $('login-btn').focus();
+}
+
+// ===== SECTION: Submit =====
+async function submit() {
+  const btn = $('login-btn'), err = $('login-error');
+  btn.disabled = true; btn.textContent = 'অপেক্ষা করুন…'; err.classList.add('hidden');
+  try {
+    const r = await LT.api('/api/auth/login', { method: 'POST', body: { username: $('username').value, password: $('password').value, portal: selected } });
+    location.href = r.redirect;
+  } catch (e) {
+    err.textContent = e.message; err.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'লগইন';
+  }
+}
+$('login-btn').addEventListener('click', submit);
+['username', 'password'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); }));
+
+// ===== SECTION: Init (supports ?portal=bank from the homepage cards) =====
+LT.mountLayout({ crumbs: [['লগইন']] });
+renderPicker();
+const pre = new URLSearchParams(location.search).get('portal');
+if (PORTALS.some((p) => p.role === pre)) select(pre);
+</script>
+</body>
+</html>

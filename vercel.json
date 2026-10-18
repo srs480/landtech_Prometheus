@@ -1,0 +1,25 @@
+{
+  "rewrites": [
+    { "source": "/api/auth/:action",         "destination": "/api/auth?action=:action" },
+    { "source": "/api/geo/:kind",            "destination": "/api/lookup?action=geo&kind=:kind" },
+    { "source": "/api/khatians",             "destination": "/api/lookup?action=khatians" },
+    { "source": "/api/people",               "destination": "/api/lookup?action=people" },
+    { "source": "/api/banks",                "destination": "/api/lookup?action=banks" },
+    { "source": "/api/khatian/:id",          "destination": "/api/land?action=khatian&id=:id" },
+    { "source": "/api/land/track",           "destination": "/api/land?action=track" },
+    { "source": "/api/registry/:action",     "destination": "/api/registry?action=:action" },
+    { "source": "/api/bank/:action",         "destination": "/api/bank?action=:action" },
+    { "source": "/api/citizen/:action",      "destination": "/api/citizen?action=:action" },
+    { "source": "/api/verify/:deedNo",       "destination": "/api/verify?deedNo=:deedNo" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "same-origin" }
+      ]
+    }
+  ]
+}

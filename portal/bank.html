@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ব্যাংক ও আর্থিক প্রতিষ্ঠান — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main"><div class="container">
+  <h1>ব্যাংক ও আর্থিক প্রতিষ্ঠান</h1>
+
+  <!-- ===== SECTION: Profile ===== -->
+  <section class="card" aria-labelledby="pf-h">
+    <h2 id="pf-h">প্রোফাইল</h2>
+    <div id="profile"></div>
+    <a class="btn outline" href="/seba/rapid-check.html">দ্রুত যাচাই (নথি আপলোড)</a>
+  </section>
+
+  <!-- ===== SECTION: Land selection ===== -->
+  <section class="section">
+    <h2>জমি নির্বাচন</h2>
+    <div class="card"><div id="picker"></div></div>
+  </section>
+
+  <!-- ===== SECTION: Loan action (mark / release) ===== -->
+  <section class="section" id="action-section" aria-live="polite"></section>
+
+  <!-- ===== SECTION: Land track record ===== -->
+  <section class="section"><div id="history"></div></section>
+</div></main>
+
+<script src="/js/land-picker.js"></script>
+<script src="/js/track-record.js"></script>
+<script>
+(async () => {
+  const user = await LT.initPortal('bank', [['ব্যাংক ও আর্থিক প্রতিষ্ঠান']]);
+  const h = LT.h, $ = (id) => document.getElementById(id);
+  let khatianId = null;
+  $('profile').replaceChildren(LT.profileList(user));
+
+  // ===== SECTION: Selection -> load state =====
+  LandPicker.mount($('picker'), { allowDag: false, onSelect: (q) => { khatianId = q.khatian; loadLand(); } });
+
+  async function loadLand() {
+    const box = $('action-section');
+    box.replaceChildren(h('p', { class: 'muted' }, 'তথ্য আনা হচ্ছে…'));
+    TrackRecord.render($('history'), { khatian: khatianId });
+    try { box.replaceChildren(draw(await LT.api('/api/khatian/' + khatianId))); }
+    catch (e) { box.replaceChildren(h('div', { class: 'alert', role: 'alert' }, e.message)); }
+  }
+
+  // ===== SECTION: Decide which action applies =====
+  function draw({ land: d, owners, mortgage: m }) {
+    const head = h('h2', {}, 'ঋণ চিহ্নিতকরণ');
+    if (m && m.mine) return h('div', {}, head, h('div', { class: 'alert warn', style: 'margin-bottom:1rem' },
+      h('b', {}, 'এই জমিতে আপনার প্রতিষ্ঠানের ঋণ চিহ্ন সক্রিয় আছে। '),
+      `হিসাব ${LT.toBn(m.loan_account)}, ${LT.fmtMoney(m.amount)}, ঋণের তারিখ ${LT.fmtDate(m.loan_date)}`), releaseForm());
+    if (m) return h('div', {}, head, h('div', { class: 'alert', role: 'alert' },
+      `এই জমিতে অন্য প্রতিষ্ঠানের (${m.bank}) ঋণ চিহ্ন আছে। দ্বিতীয়বার ঋণ চিহ্নিত করা যাবে না, এবং আপনি অন্যের ঋণ মুক্ত করতে পারবেন না।`));
+    if (d.is_khas || d.is_acquired) return h('div', {}, head, h('div', { class: 'alert', role: 'alert' }, 'খাস বা অধিগ্রহণকৃত জমিতে ঋণ চিহ্নিত করা যাবে না।'));
+    if (!owners.length) return h('div', {}, head, h('div', { class: 'alert', role: 'alert' }, 'এই জমির কোনো বর্তমান মালিক নেই।'));
+    return h('div', {}, head, markForm(owners));
+  }
+
+  // ===== SECTION: Form helpers =====
+  const field = (label, id, attrs = {}) => { const i = h('input', { id, ...attrs }); return [h('div', { class: 'field' }, h('label', { for: id }, label), i), i]; };
+  const errBox = () => h('div', { class: 'alert hidden', role: 'alert', style: 'margin-bottom:1rem' });
+  const showErr = (box, m) => { box.textContent = m; box.classList.remove('hidden'); box.scrollIntoView({ block: 'center' }); };
+
+  // ===== SECTION: Mark loan =====
+  function markForm(owners) {
+    const err = errBox();
+    const sel = h('select', { id: 'borrower' }, h('option', { value: '' }, 'নির্বাচন করুন'), owners.map((o) => h('option', { value: o.id }, o.name_bn)));
+    const [fAmt, amt] = field('ঋণের পরিমাণ (টাকা)', 'amount', { inputmode: 'numeric' });
+    const [fDate, date] = field('ঋণের তারিখ', 'loan-date', { type: 'date', value: LT.todayIso() });
+    const [fAcc, acc] = field('ঋণ হিসাব নম্বর (ইংরেজি অক্ষর/সংখ্যা ও হাইফেন)', 'loan-acc', { placeholder: 'যেমন: LN-DEMO-0002' });
+    const [fRem, rem] = field('মন্তব্য', 'remarks', { maxlength: 300 });
+    const btn = h('button', { class: 'btn', type: 'button' }, 'ঋণ চিহ্নিত করুন');
+    btn.addEventListener('click', async () => {
+      err.classList.add('hidden');
+      if (!sel.value) return showErr(err, 'ঋণগ্রহীতা নির্বাচন করুন');
+      if (!(Number(LT.en(amt.value)) > 0)) return showErr(err, 'সঠিক ঋণের পরিমাণ লিখুন');
+      if (!/^[A-Za-z0-9-]{4,30}$/.test(acc.value.trim())) return showErr(err, 'ঋণ হিসাব নম্বর ইংরেজি অক্ষর/সংখ্যায় (কমপক্ষে ৪টি) লিখুন');
+      btn.disabled = true;
+      try {
+        await LT.api('/api/bank/mark-loan', { method: 'POST', body: { khatianId, borrowerId: sel.value, amount: LT.en(amt.value), loanDate: date.value, loanAccount: acc.value.trim(), remarks: rem.value } });
+        LT.toast('ঋণ সফলভাবে চিহ্নিত হয়েছে'); loadLand();
+      } catch (e) { btn.disabled = false; showErr(err, e.message); }
+    });
+    return h('div', { class: 'card' }, h('h3', {}, 'ঋণ / লিয়েন চিহ্নিত করুন'), err,
+      h('div', { class: 'field' }, h('label', { for: 'borrower' }, 'ঋণগ্রহীতা (বর্তমান মালিক)'), sel), fAmt, fDate, fAcc, fRem, btn);
+  }
+
+  // ===== SECTION: Release loan =====
+  function releaseForm() {
+    const err = errBox();
+    const [fDate, date] = field('মুক্তির তারিখ', 'release-date', { type: 'date', value: LT.todayIso() });
+    const [fRem, rem] = field('মন্তব্য', 'release-remarks', { maxlength: 300 });
+    const btn = h('button', { class: 'btn danger', type: 'button' }, 'ঋণ মুক্ত করুন');
+    btn.addEventListener('click', async () => {
+      err.classList.add('hidden');
+      if (!date.value) return showErr(err, 'মুক্তির তারিখ দিন');
+      if (!confirm('ঋণ মুক্ত করলে জমির বন্ধক চিহ্ন সরে যাবে (ইতিহাস থেকে যাবে)। নিশ্চিত?')) return;
+      btn.disabled = true;
+      try {
+        await LT.api('/api/bank/release-loan', { method: 'POST', body: { khatianId, releaseDate: date.value, remarks: rem.value } });
+        LT.toast('ঋণ মুক্ত করা হয়েছে'); loadLand();
+      } catch (e) { btn.disabled = false; showErr(err, e.message); }
+    });
+    return h('div', { class: 'card' }, h('h3', {}, 'ঋণ মুক্ত করুন'), err, fDate, fRem, btn);
+  }
+})();
+</script>
+</body>
+</html>

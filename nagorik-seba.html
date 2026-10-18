@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>নাগরিক সেবা — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<!-- ===== SECTION: Hero ===== -->
+<main id="main" style="padding-top:0">
+  <section class="page-hero"><div class="container">
+    <h1>নাগরিক সেবা</h1>
+    <p>জমি-সংক্রান্ত বিষয় সহজ ভাষায় বুঝুন, প্রতারণা চিনুন এবং নিশ্চিন্তে সিদ্ধান্ত নিন। কোনো লগইন লাগবে না।</p>
+  </div></section>
+  <div class="container">
+    <!-- ===== SECTION: Service cards ===== -->
+    <section class="section" aria-labelledby="svc-h">
+      <h2 id="svc-h">আপনি কী জানতে চান?</h2>
+      <div class="grid">
+        <a class="card icon-card" href="/seba/terminology.html"><span class="emoji" aria-hidden="true">📚</span><h3>জমির শব্দভান্ডার</h3><p class="muted">পর্চা, খতিয়ান, দাগ, নামজারি — সহজ বাংলায়, সাথে পর্চার নমুনা।</p></a>
+        <a class="card icon-card" href="/seba/deed-types.html"><span class="emoji" aria-hidden="true">📄</span><h3>দলিলের ধরন</h3><p class="muted">৭ ধরনের দলিল, কুদ্দুস ও আবিরের গল্পে।</p></a>
+        <a class="card icon-card" href="/seba/scams.html"><span class="emoji" aria-hidden="true">🚨</span><h3>সাধারণ প্রতারণা</h3><p class="muted">১২ ধরনের প্রতারণা চিনুন এবং শিকার হলে কী করবেন জানুন।</p></a>
+        <a class="card icon-card" href="/seba/rapid-check.html"><span class="emoji" aria-hidden="true">🔎</span><h3>দ্রুত যাচাই</h3><p class="muted">দলিল, খতিয়ান বা পর্চার ছবি আপলোড করে যাচাই করুন।</p></a>
+        <a class="card icon-card" href="/login.html?portal=citizen"><span class="emoji" aria-hidden="true">🏡</span><h3>নাগরিক ও ক্রেতা পোর্টাল</h3><p class="muted">সুরক্ষা টোকেন দিয়ে জমির মালিক ও ইতিহাস যাচাই করুন।</p></a>
+      </div>
+    </section>
+
+    <!-- ===== SECTION: 7-point checklist + risk check ===== -->
+    <section class="section" aria-labelledby="chk-h">
+      <h2 id="chk-h">জমি কেনার আগে ৭টি যাচাই</h2>
+      <p class="muted">যেগুলো যাচাই করেছেন সেগুলোতে টিক দিন, তারপর "ঝুঁকি দেখুন" চাপুন।</p>
+      <div class="bar" role="progressbar" aria-label="যাচাই অগ্রগতি" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0" id="bar"><i id="bar-fill"></i></div>
+      <p id="bar-text" class="muted" style="margin:.4rem 0 1rem"></p>
+      <div id="checklist" style="display:grid;gap:.8rem"></div>
+      <button class="btn" type="button" id="risk-btn" style="margin-top:1rem">ঝুঁকি দেখুন</button>
+      <div id="risk-result" aria-live="polite" style="margin-top:1rem"></div>
+    </section>
+
+    <!-- ===== SECTION: Link to citizen portal ===== -->
+    <section class="section">
+      <div class="alert info">
+        <h3>আপনার জমির প্রকৃত অবস্থা জানতে চান?</h3>
+        <p>নাগরিক ও ক্রেতা পোর্টালে সুরক্ষা টোকেন দিয়ে জমির মালিক, বন্ধক, মামলা ও পুরো ইতিহাস দেখুন।</p>
+        <a class="btn" href="/login.html?portal=citizen">নাগরিক পোর্টালে যান</a>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="/js/content-scams.js"></script>
+<script src="/js/content-checklist.js"></script>
+<script>
+// ===== SECTION: Checklist + risk check =====
+LT.mountLayout({ crumbs: [['নাগরিক সেবা']], help: true });
+const h = LT.h, $ = (id) => document.getElementById(id);
+const checked = new Set();
+const scamById = (id) => SCAMS.find((s) => s.id === id);
+
+function updateBar() {
+  const n = checked.size, bar = $('bar');
+  $('bar-fill').style.width = (n / CHECKLIST.length) * 100 + '%'; bar.setAttribute('aria-valuenow', n);
+  $('bar-text').textContent = `${LT.toBn(n)}/${LT.toBn(CHECKLIST.length)} যাচাই সম্পন্ন`;
+}
+$('checklist').replaceChildren(...CHECKLIST.map((c, i) => {
+  const cb = h('input', { type: 'checkbox', id: 'ck-' + c.id });
+  cb.addEventListener('change', () => { cb.checked ? checked.add(c.id) : checked.delete(c.id); updateBar(); });
+  return h('div', { class: 'card check-item' }, cb, h('div', {},
+    h('label', { for: 'ck-' + c.id }, `${LT.toBn(i + 1)}. ${c.title}`), h('p', { class: 'muted', style: 'margin:.2rem 0 .4rem' }, c.why)));
+}));
+updateBar();
+
+$('risk-btn').addEventListener('click', () => {
+  const missing = CHECKLIST.filter((c) => !checked.has(c.id)), n = missing.length;
+  const level = n === 0 ? ['ok', 'কম ঝুঁকি', 'সব যাচাই সম্পন্ন। তবুও চূড়ান্ত রেজিস্ট্রির আগে একজন আইনজীবীর পরামর্শ নেওয়া ভালো।']
+    : n <= 2 ? ['warn', 'মাঝারি ঝুঁকি', 'কয়েকটি যাচাই বাকি আছে। টাকা দেওয়ার আগে সেগুলো শেষ করুন।']
+    : ['danger', 'উচ্চ ঝুঁকি', 'অনেক যাচাই বাকি। এই অবস্থায় টাকা লেনদেন বা দলিল সম্পাদন করবেন না।'];
+  const related = [...new Set(missing.flatMap((c) => c.scams))].map(scamById).filter(Boolean);
+  $('risk-result').replaceChildren(h('div', { class: 'alert' + (level[0] === 'ok' ? ' info' : level[0] === 'warn' ? ' warn' : ''), role: 'status' },
+    h('h3', {}, 'ফলাফল: ' + level[1]), h('p', {}, level[2]),
+    related.length ? h('div', {}, h('p', {}, h('b', {}, 'এই প্রতারণাগুলো সম্পর্কে সতর্ক থাকুন:')),
+      related.map((s) => h('a', { class: 'chip', href: '/seba/scams.html#' + s.id }, `${s.icon} ${s.titleBn}`))) : ''));
+});
+</script>
+</body>
+</html>

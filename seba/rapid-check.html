@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>দ্রুত যাচাই — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main" style="padding-top:0">
+  <section class="page-hero"><div class="container"><h1>দ্রুত যাচাই</h1><p>একটি নথির ধরন বেছে এক বা একাধিক ছবি আপলোড করুন, তারপর "যাচাই করুন" চাপুন।</p></div></section>
+  <div class="container" style="margin-top:1.5rem;max-width:820px">
+    <div class="alert info" style="margin-bottom:1rem">🔒 আপনার ছবি সার্ভারে স্থায়ীভাবে সংরক্ষণ করা হয় না। এখন এটি শুধু একটি ডেমো; বাংলা ওসিআর পরে যুক্ত হবে।</div>
+    <div class="card">
+      <!-- ===== SECTION: Document type ===== -->
+      <div class="field"><label for="doc-type">১. নথির ধরন (একটি নির্বাচন করুন)</label>
+        <select id="doc-type"><option value="">নির্বাচন করুন</option></select></div>
+
+      <!-- ===== SECTION: Upload zone ===== -->
+      <p style="font-weight:600;margin-bottom:.3rem">২. ছবি আপলোড করুন</p>
+      <label class="dropzone" id="drop" for="file-input">
+        <span style="font-size:2rem" aria-hidden="true">📤</span><br>
+        <b>ছবি এখানে টেনে আনুন অথবা বেছে নিতে চাপুন</b><br>
+        <small class="muted">JPG, PNG বা WEBP • প্রতিটি সর্বোচ্চ ২ এমবি • মোট ৪ এমবি • সর্বোচ্চ ৬টি</small>
+        <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+      </label>
+      <div class="alert hidden" id="file-error" role="alert" style="margin-top:1rem"></div>
+      <div class="thumbs" id="thumbs" aria-live="polite"></div>
+      <button class="btn block" type="button" id="check-btn" style="margin-top:1.2rem" disabled>যাচাই করুন</button>
+    </div>
+
+    <!-- ===== SECTION: Placeholder result panel ===== -->
+    <section id="result" aria-live="polite" style="margin-top:1.5rem"></section>
+  </div>
+</main>
+<script src="/js/content-deeds.js"></script>
+<script>
+LT.mountLayout({ crumbs: [['নাগরিক সেবা', '/nagorik-seba.html'], ['দ্রুত যাচাই']], help: true });
+const h = LT.h, $ = (id) => document.getElementById(id);
+
+// ===== SECTION: Document types (7 deeds + khatians, porcha, namjari khatian, warishan certificate) =====
+const DOCS = [...DEEDS_CONTENT.map((d) => [d.id, d.titleBn]), ['khatian_cs', 'সিএস খতিয়ান'], ['khatian_rs', 'আরএস খতিয়ান'], ['khatian_sa', 'এসএ খতিয়ান'],
+  ['khatian_brs', 'বিআরএস খতিয়ান'], ['porcha', 'পর্চা'], ['namjari_khatian', 'নামজারি খতিয়ান'], ['warishan', 'ওয়ারিশান সনদ']];
+$('doc-type').append(...DOCS.map(([v, t]) => h('option', { value: v }, t)));
+
+// ===== SECTION: File handling (type/size/count validation, thumbnails, remove) =====
+const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'], MAX_FILES = 6, MAX_ONE = 2 * 1024 * 1024, MAX_TOTAL = 4 * 1024 * 1024;
+let files = [];   // { file, url }
+const mb = (n) => LT.toBn((n / 1048576).toFixed(1));
+function problem(m) { const e = $('file-error'); e.textContent = m || ''; e.classList.toggle('hidden', !m); }
+function addFiles(list) {
+  const msgs = [];
+  for (const f of list) {
+    const total = files.reduce((a, x) => a + x.file.size, 0);
+    if (!OK_TYPES.includes(f.type)) msgs.push(`"${f.name}": শুধু JPG, PNG বা WEBP ছবি দেওয়া যাবে`);
+    else if (f.size > MAX_ONE) msgs.push(`"${f.name}": ফাইলটি ${mb(f.size)} এমবি, সর্বোচ্চ ২ এমবি`);
+    else if (files.some((x) => x.file.name === f.name && x.file.size === f.size)) msgs.push(`"${f.name}": ইতিমধ্যে যোগ করা হয়েছে`);
+    else if (files.length >= MAX_FILES) { msgs.push(`সর্বোচ্চ ${LT.toBn(MAX_FILES)}টি ছবি দেওয়া যাবে`); break; }
+    else if (total + f.size > MAX_TOTAL) msgs.push(`"${f.name}": মোট আকার ৪ এমবি ছাড়িয়ে যাবে`);
+    else files.push({ file: f, url: URL.createObjectURL(f) });
+  }
+  problem(msgs.join('। ')); draw();
+}
+function removeAt(i) { URL.revokeObjectURL(files[i].url); files.splice(i, 1); problem(''); draw(); }
+function draw() {
+  $('thumbs').replaceChildren(...files.map((x, i) => h('div', { class: 'thumb' },
+    h('img', { src: x.url, alt: x.file.name }), h('span', {}, `${x.file.name} (${mb(x.file.size)} এমবি)`),
+    h('button', { type: 'button', 'aria-label': x.file.name + ' সরান', onclick: () => removeAt(i) }, '✕'))));
+  refresh();
+}
+const refresh = () => { $('check-btn').disabled = !($('doc-type').value && files.length); };
+$('doc-type').addEventListener('change', refresh);
+$('file-input').addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
+const drop = $('drop');
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => addFiles([...e.dataTransfer.files]));
+
+// ===== SECTION: Submit to the stub endpoint =====
+$('check-btn').addEventListener('click', async () => {
+  const btn = $('check-btn'); btn.disabled = true; btn.textContent = 'যাচাই চলছে…';
+  const fd = new FormData(); fd.append('docType', $('doc-type').value); files.forEach((x) => fd.append('files', x.file, x.file.name));
+  const label = DOCS.find((d) => d[0] === $('doc-type').value)[1];
+  try {
+    const r = await LT.api('/api/ocr-check', { method: 'POST', body: fd });
+    const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
+    $('result').replaceChildren(h('div', { class: 'card' }, h('h2', {}, 'যাচাইয়ের ফলাফল'),
+      h('div', { class: 'alert warn', style: 'margin-bottom:1rem' }, r.message),
+      h('dl', { class: 'kv' }, row('নথির ধরন', label), row('ছবির সংখ্যা', LT.toBn(files.length)), row('অবস্থা', 'ওসিআর সংযোগের অপেক্ষায়'),
+        row('নথি / খতিয়ান নম্বর', '—'), row('মালিকের নাম', '—'), row('দাগ নম্বর', '—'), row('জমির পরিমাণ', '—'), row('সম্ভাব্য জালিয়াতির সংকেত', '—'))));
+    $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) { $('result').replaceChildren(h('div', { class: 'alert', role: 'alert' }, e.message)); }
+  btn.textContent = 'যাচাই করুন'; refresh();
+});
+</script>
+</body>
+</html>

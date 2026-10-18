@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>জমির শব্দভান্ডার — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main" style="padding-top:0">
+  <section class="page-hero"><div class="container"><h1>জমির শব্দভান্ডার</h1><p>পর্চা, খতিয়ান, দাগ, নামজারি — জমির কঠিন শব্দ সহজ বাংলায়।</p></div></section>
+  <div class="container">
+    <!-- ===== SECTION: Searchable glossary ===== -->
+    <section class="section" aria-labelledby="g-h">
+      <h2 id="g-h">শব্দ খুঁজুন</h2>
+      <div class="field"><label for="q">শব্দ লিখুন (যেমন: নামজারি)</label><input id="q" type="search" autocomplete="off"></div>
+      <p class="muted" id="count" aria-live="polite"></p>
+      <div class="grid" id="terms"></div>
+    </section>
+
+    <!-- ===== SECTION: Annotated porcha ===== -->
+    <section class="section" aria-labelledby="p-h">
+      <h2 id="p-h">পর্চার নমুনা — প্রতিটি ঘরে চাপুন</h2>
+      <p class="muted">নিচের সব তথ্য কাল্পনিক। কোন ঘরে কী লেখা থাকে এবং কেন তা মিলিয়ে দেখবেন, জানতে ঘরে চাপুন।</p>
+      <div class="porcha" id="porcha"></div>
+      <div class="callout" id="porcha-note" aria-live="polite" style="margin-top:1rem"></div>
+    </section>
+
+    <!-- ===== SECTION: Land types ===== -->
+    <section class="section" aria-labelledby="l-h">
+      <h2 id="l-h">জমির ধরন</h2>
+      <div class="grid" id="types"></div>
+    </section>
+  </div>
+</main>
+<script src="/js/content-terms.js"></script>
+<script>
+LT.mountLayout({ crumbs: [['নাগরিক সেবা', '/nagorik-seba.html'], ['জমির শব্দভান্ডার']], help: true });
+const h = LT.h, $ = (id) => document.getElementById(id);
+
+// ===== SECTION: Glossary search =====
+function drawTerms() {
+  const q = $('q').value.trim().toLowerCase();
+  const list = TERMS.filter((t) => !q || (t.term + ' ' + t.en + ' ' + t.meaning).toLowerCase().includes(q));
+  $('count').textContent = list.length ? `${LT.toBn(list.length)}টি শব্দ পাওয়া গেছে` : 'কোনো শব্দ পাওয়া যায়নি। অন্য শব্দ দিয়ে চেষ্টা করুন।';
+  $('terms').replaceChildren(...list.map((t) => h('div', { class: 'card' }, h('h3', {}, t.term), h('small', { class: 'muted' }, t.en), h('p', { style: 'margin-top:.4rem' }, t.meaning))));
+}
+$('q').addEventListener('input', drawTerms); drawTerms();
+
+// ===== SECTION: Porcha sample =====
+function pick(i) {
+  document.querySelectorAll('#porcha button').forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)));
+  const [name, , why] = PORCHA_FIELDS[i];
+  $('porcha-note').replaceChildren(h('b', {}, name + ': '), why);
+}
+$('porcha').replaceChildren(...PORCHA_FIELDS.map(([name, val], i) => h('button', { type: 'button', 'aria-pressed': 'false', onclick: () => pick(i) }, h('small', {}, name), h('b', {}, val))));
+pick(0);
+
+// ===== SECTION: Land types =====
+$('types').replaceChildren(...LAND_TYPES.map(([icon, name, text]) => h('div', { class: 'card icon-card' }, h('span', { class: 'emoji', 'aria-hidden': 'true' }, icon), h('h3', {}, name), h('p', { class: 'muted' }, text))));
+</script>
+</body>
+</html>

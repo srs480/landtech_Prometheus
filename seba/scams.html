@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>প্রতারণা সতর্কতা — ডিজিটাল ভূমি সেবা পোর্টাল</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<main id="main" style="padding-top:0">
+  <section class="page-hero"><div class="container"><h1>সাধারণ প্রতারণা ও করণীয়</h1><p>জমি-সংক্রান্ত ১২ ধরনের প্রতারণা চিনুন। যেকোনো কার্ডে চাপলে কীভাবে ঘটে, লক্ষণ এবং শিকার হলে ধাপে ধাপে কী করবেন দেখতে পাবেন।</p></div></section>
+  <div class="container" style="margin-top:1.5rem">
+    <div class="alert" style="margin-bottom:1.5rem">
+      <h3>প্রতারণার শিকার হয়েছেন?</h3><p>কোন ধরনের প্রতারণা তা বুঝতে না পারলেও জরুরি করণীয় দেখুন।</p>
+      <button class="btn danger" type="button" id="emergency-btn">জরুরি করণীয় দেখুন</button>
+    </div>
+    <div class="grid" id="scam-grid"></div>
+    <section class="detail" id="scam-detail" style="margin-top:1.5rem" aria-live="polite" tabindex="-1"></section>
+    <p class="muted center" style="margin-top:2rem" id="disclaimer"></p>
+  </div>
+</main>
+<script src="/js/content-scams.js"></script>
+<script>
+// ===== SECTION: Scam cards + auto-built detail view (driven entirely by SCAMS in content-scams.js) =====
+LT.mountLayout({ crumbs: [['নাগরিক সেবা', '/nagorik-seba.html'], ['প্রতারণা সতর্কতা']], help: true });
+const h = LT.h, $ = (id) => document.getElementById(id), C = SCAM_COMMON;
+$('disclaimer').textContent = '⚠ ' + C.disclaimer;
+
+const flow = (steps) => h('ol', { class: 'flow' }, steps.map((s) => h('li', {}, s)));
+const list = (cls, items) => h('ul', { class: cls }, items.map((i) => h('li', {}, i)));
+
+// ===== SECTION: Shared guidance blocks =====
+function commonBlocks() {
+  return [
+    h('h3', {}, '📁 যে কাগজপত্র সংরক্ষণ করবেন'), list('do-list', C.documents),
+    h('h3', {}, '🏛 কোথায় যাবেন'), h('div', { class: 'grid' }, C.offices.map((o) => h('div', { class: 'card' }, h('b', {}, o.name), h('p', { class: 'muted', style: 'margin:.2rem 0 0' }, o.use)))),
+    h('h3', { style: 'margin-top:1.2rem' }, '📞 হটলাইন'), h('div', { class: 'grid' }, C.hotlines.map((x) => h('div', { class: 'card' }, h('b', { style: 'font-size:1.5rem' }, x.n), h('p', { class: 'muted', style: 'margin:0' }, x.t)))),
+    h('h3', { style: 'margin-top:1.2rem' }, '🚫 কী করবেন না'), list('dont', C.donts),
+  ];
+}
+
+function show(id) {
+  document.querySelectorAll('#scam-grid button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  const box = $('scam-detail');
+  if (id === 'emergency') {
+    box.replaceChildren(h('div', { class: 'card' }, h('h2', {}, '🆘 জরুরি করণীয় (যেকোনো প্রতারণায়)'), flow(C.emergency), ...commonBlocks()));
+  } else {
+    const s = SCAMS.find((x) => x.id === id); if (!s) return;
+    box.replaceChildren(h('div', { class: 'card' },
+      h('h2', {}, `${s.icon} ${s.titleBn}`), h('p', { class: 'muted' }, s.titleEn),
+      h('h3', {}, 'কীভাবে ঘটে'), h('p', {}, s.howItHappens),
+      h('h3', {}, '⚠ সতর্কতার লক্ষণ'), h('ul', {}, s.warningSigns.map((w) => h('li', {}, w))),
+      h('h3', {}, 'আপনি প্রতারণার শিকার হলে কী করবেন'), flow(s.whatToDo), ...commonBlocks(),
+      h('a', { class: 'btn outline', href: '/nagorik-seba.html' }, 'কেনার আগে ৭টি যাচাই দেখুন')));
+  }
+  history.replaceState(null, '', '#' + id); box.focus();
+}
+$('scam-grid').replaceChildren(...SCAMS.map((s) => h('button', { class: 'card icon-card', type: 'button', 'data-id': s.id, 'aria-pressed': 'false', onclick: () => show(s.id) },
+  h('span', { class: 'emoji', 'aria-hidden': 'true' }, s.icon), h('h3', {}, s.titleBn), h('p', { class: 'muted' }, s.short))));
+$('emergency-btn').addEventListener('click', () => show('emergency'));
+if (location.hash) show(location.hash.slice(1));
+</script>
+</body>
+</html>
